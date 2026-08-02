@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D测试</title>
+<style>body{margin:0;background:#222;overflow:hidden}#msg{position:fixed;top:10px;left:10px;color:#fff;font-size:14px;z-index:10}</style>
+</head>
+<body>
+<div id="msg">加载中...</div>
+<script src="https://lib.baomitu.com/three.js/r128/three.min.js"></script>
+<script>
+if(typeof THREE==='undefined'){
+  document.getElementById('msg').innerHTML='Three.js 加载失败 - CDN无法访问';
+}else{
+  try{
+    var s=new THREE.Scene();s.background=new THREE.Color(0x336699);
+    var c=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,100);
+    var r=new THREE.WebGLRenderer({antialias:true});r.setSize(window.innerWidth,window.innerHeight);
+    document.body.appendChild(r.domElement);
+    var g=new THREE.BoxGeometry(2,2,2);
+    var m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xff6600}));
+    s.add(m);
+    var l=new THREE.DirectionalLight(0xffffff,1);l.position.set(5,5,5);s.add(l);
+    s.add(new THREE.AmbientLight(0x404040,1));
+    c.position.z=5;
+    function a(){requestAnimationFrame(a);m.rotation.x+=0.01;m.rotation.y+=0.01;r.render(s,c)}
+    a();
+    document.getElementById('msg').innerHTML='✅ 3D正常 - 应看到橙色旋转方块';
+  }catch(e){
+    document.getElementById('msg').innerHTML='❌ 错误: '+e.message;
+  }
+}
+</script>
+</body>
+</html>
