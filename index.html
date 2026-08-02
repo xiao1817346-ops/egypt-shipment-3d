@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>物资3D装箱视图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;overflow:hidden;background:#1a1a2e;display:flex;height:100vh}
+#v3d{flex:1;min-width:0;position:relative}
+#panel{width:420px;background:#141428;border-left:1px solid #2a2a40;display:flex;flex-direction:column}
+#search{padding:10px;border-bottom:1px solid #2a2a40}
+#search input{width:100%;padding:9px 12px;border-radius:6px;border:1px solid #3a3a50;background:#1e1e38;color:#eee;font-size:13px;outline:none}
+#stats{padding:6px 12px;color:#777;font-size:11px;border-bottom:1px solid #2a2a40;display:flex;justify-content:space-between}
+#twrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{position:sticky;top:0;background:#1a1a32;color:#999;padding:6px 8px;text-align:left;border-bottom:1px solid #2a2a40;z-index:2}
+td{padding:5px 8px;color:#bbb;border-bottom:1px solid #1a1a32;white-space:nowrap;cursor:pointer}
+tr:hover td{background:#1e1e3a}
+tr.hl td{background:#2a2a50!important;color:#fff!important}
+td:nth-child(3){max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#hint{position:absolute;bottom:12px;left:12px;color:#555;font-size:10px;pointer-events:none}
+.dot{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}
+@media(max-width:768px){
+  body{flex-direction:column}
+  #v3d{height:55vh}
+  #panel{width:100%;height:45vh;border-left:none;border-top:1px solid #2a2a40}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="v3d"><div id="hint">拖拽旋转 | 滚轮缩放 | 点击方块查看</div></div>
+<div id="panel">
+  <div id="search"><input type="text" placeholder="搜索..." oninput="filterTable(this.value)"></div>
+  <div id="stats"><span id="cnt">313项</span><span id="sel"></span></div>
+  <div id="twrap"><table><thead><tr><th>类别</th><th>名称</th><th>规格</th><th>数量</th></tr></thead><tbody id="tb"></tbody></table></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/renderers/CSS2DRenderer.js"></script>
+
+<script>
+var DATA = [{"n": "集装箱", "s": "20GP小箱", "q": "2", "u": "个", "c": "运输工装"}, {"n": "集装箱", "s": "12m", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢跳板）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢跳板）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢跳板）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢跳板）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢跳板）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（脚手架钢管）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（罐体安装卡具）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "托架（罐体安装销轴）", "s": "", "q": "1", "u": "个", "c": "运输工装"}, {"n": "出口包装木箱", "s": "", "q": "3", "u": "个", "c": "运输工装"}, {"n": "铝芯电力电缆", "s": "ZRC-YJLV3*150+2*70", "q": "50", "u": "米", "c": "配电设备"}, {"n": "铝芯电力电缆", "s": "ZRC-YJLV3*70+2*35", "q": "150", "u": "米", "c": "配电设备"}, {"n": "铝芯电力电缆", "s": "ZRC-YJLV3*50+2*25", "q": "50", "u": "米", "c": "配电设备"}, {"n": "插排", "s": "", "q": "2", "u": "个", "c": "配电设备"}, {"n": "三通头子", "s": "16A", "q": "2", "u": "个", "c": "配电设备"}, {"n": "铜芯电缆", "s": "3*6＋2*4㎡", "q": "150", "u": "米", "c": "配电设备"}, {"n": "铜芯电缆", "s": "3*1.5㎡", "q": "1000", "u": "米", "c": "配电设备"}, {"n": "铜芯电缆", "s": "3*4＋1*2.5㎡", "q": "100", "u": "米", "c": "配电设备"}, {"n": "铜芯电缆（黄绿双线）", "s": "1*6㎡", "q": "1", "u": "卷", "c": "配电设备"}, {"n": "二级配电箱", "s": "主 400A、4分路 4*250A", "q": "1", "u": "个", "c": "配电设备"}, {"n": "三级配电箱", "s": "主250A .8*32A.380V  2*32A 220V", "q": "3", "u": "个", "c": "配电设备"}, {"n": "三级配电箱", "s": "主 100A，380V 2路 32A、220V 6路 32A（配成套插头）", "q": "4", "u": "个", "c": "配电设备"}, {"n": "手提式配电箱", "s": "3*16A（配成套插头）", "q": "7", "u": "个", "c": "配电设备"}, {"n": "开口铜鼻子", "s": "60A", "q": "200", "u": "个", "c": "配电设备"}, {"n": "地线接地针", "s": "", "q": "50", "u": "个", "c": "配电设备"}, {"n": "万用表", "s": "", "q": "2", "u": "个", "c": "配电设备"}, {"n": "摇表兆欧表", "s": "", "q": "2", "u": "个", "c": "配电设备"}, {"n": "电笔", "s": "", "q": "4", "u": "个", "c": "配电设备"}, {"n": "开口钳形电流表", "s": "", "q": "1", "u": "个", "c": "配电设备"}, {"n": "接地电阻测试仪", "s": "", "q": "1", "u": "个", "c": "配电设备"}, {"n": "开口铜鼻子", "s": "400A", "q": "30", "u": "个", "c": "配电设备"}, {"n": "开口铜鼻子", "s": "600A", "q": "6", "u": "个", "c": "配电设备"}, {"n": "脚手架钢跳板", "s": "3000*250*1.2", "q": "2000", "u": "块", "c": "脚手架"}, {"n": "脚手架钢管", "s": "", "q": "1200", "u": "根", "c": "脚手架"}, {"n": "十字扣件", "s": "", "q": "4000", "u": "个", "c": "脚手架"}, {"n": "旋转扣件", "s": "", "q": "500", "u": "个", "c": "脚手架"}, {"n": "直接扣件", "s": "", "q": "400", "u": "个", "c": "脚手架"}, {"n": "卡具", "s": "", "q": "550", "u": "个", "c": "罐体组装"}, {"n": "圆销", "s": "", "q": "1100", "u": "个", "c": "罐体组装"}, {"n": "方销", "s": "", "q": "2300", "u": "个", "c": "罐体组装"}, {"n": "插编加压钢丝绳", "s": "", "q": "4", "u": "条", "c": "罐体组装"}, {"n": "插编加压钢丝绳", "s": "", "q": "3", "u": "条", "c": "罐体组装"}, {"n": "插编加压钢丝绳", "s": "", "q": "2", "u": "条", "c": "罐体组装"}, {"n": "插编加压钢丝绳", "s": "", "q": "1", "u": "条", "c": "罐体组装"}, {"n": "插编加压钢丝绳", "s": "", "q": "6", "u": "条", "c": "罐体组装"}, {"n": "弓形卸扣", "s": "", "q": "2", "u": "个", "c": "罐体组装"}, {"n": "弓形卸扣", "s": "", "q": "4", "u": "个", "c": "罐体组装"}, {"n": "彩色吊装带", "s": "", "q": "4", "u": "条", "c": "罐体组装"}, {"n": "钢板吊钳", "s": "起重量5T 开口范围0-50mm", "q": "4", "u": "个", "c": "罐体组装"}, {"n": "手拉葫芦", "s": "1吨6米", "q": "2", "u": "个", "c": "罐体组装"}, {"n": "手拉葫芦", "s": "5吨6米", "q": "3", "u": "个", "c": "罐体组装"}, {"n": "千斤顶", "s": "", "q": "2", "u": "个", "c": "罐体组装"}, {"n": "施工尼龙线", "s": "", "q": "1", "u": "卷", "c": "罐体组装"}, {"n": "磁性吊线坠", "s": "6m*400g", "q": "2", "u": "个", "c": "罐体组装"}, {"n": "定滑轮", "s": "", "q": "2", "u": "个", "c": "罐体组装"}, {"n": "焊条库用品（温湿度计）", "s": "", "q": "2", "u": "个", "c": "焊接切割"}, {"n": "焊条桶", "s": "容量50kg", "q": "40", "u": "个", "c": "焊接切割"}, {"n": "气刨空压机", "s": "型号0.97/12.5功率7.5KW/10HP", "q": "1", "u": "台", "c": "焊接切割"}, {"n": "氧气乙炔回火器", "s": "", "q": "6", "u": "个", "c": "焊接切割"}, {"n": "割嘴", "s": "100型2#", "q": "5", "u": "盒", "c": "焊接切割"}, {"n": "割嘴", "s": "30型3#", "q": "5", "u": "盒", "c": "焊接切割"}, {"n": "不锈钢卡子", "s": "", "q": "1", "u": "包", "c": "焊接切割"}, {"n": "氧气管对接接头", "s": "8mm*10，10mm*10", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "割嘴通针", "s": "", "q": "4", "u": "个", "c": "焊接切割"}, {"n": "打磨白眼镜", "s": "", "q": "5", "u": "盒", "c": "焊接切割"}, {"n": "打磨面屏", "s": "", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "切割黑眼镜", "s": "", "q": "1", "u": "盒", "c": "焊接切割"}, {"n": "电焊机远控头", "s": "", "q": "30", "u": "个", "c": "焊接切割"}, {"n": "电焊机远控线", "s": "3芯0.5mm", "q": "4", "u": "卷", "c": "焊接切割"}, {"n": "白玻璃", "s": "", "q": "1000", "u": "片", "c": "焊接切割"}, {"n": "黑玻璃", "s": "", "q": "200", "u": "片", "c": "焊接切割"}, {"n": "DJK50-70焊机快速插头", "s": "", "q": "70", "u": "个", "c": "焊接切割"}, {"n": "DJK50-70焊机插座", "s": "", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "钢管", "s": "dn206分", "q": "13", "u": "根", "c": "焊接切割"}, {"n": "型材切割机", "s": "", "q": "2", "u": "台", "c": "焊接切割"}, {"n": "切割片", "s": "355×3×25mm", "q": "100", "u": "片", "c": "焊接切割"}, {"n": "焊条库用品（除湿计）", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "焊条库用品（焊条房管理制度牌）", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "焊条库用品（领用制度）", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "焊条库用品（回收制度）", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "焊条库用品（发放制度）", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "焊条库用品（LED灯泡）", "s": "", "q": "6", "u": "个", "c": "焊接切割"}, {"n": "电焊机", "s": "ZX7-1000S", "q": "1", "u": "台", "c": "焊接切割"}, {"n": "焊条库用品（灯座）", "s": "", "q": "3", "u": "个", "c": "焊接切割"}, {"n": "碳刷", "s": "180", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "碳刷", "s": "150", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铜铝鼻子", "s": "150", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铜铝鼻子", "s": "70", "q": "50", "u": "个", "c": "焊接切割"}, {"n": "铜铝鼻子", "s": "50", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铜铝鼻子", "s": "35", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铜铝鼻子", "s": "25", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铝套管", "s": "150", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "铝套管", "s": "70", "q": "20", "u": "个", "c": "焊接切割"}, {"n": "铝套管", "s": "50", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "铝套管", "s": "35", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "铝套管", "s": "25", "q": "10", "u": "个", "c": "焊接切割"}, {"n": "铜铝管", "s": "70", "q": "40", "u": "个", "c": "焊接切割"}, {"n": "接火盆", "s": "", "q": "11", "u": "个", "c": "焊接切割"}, {"n": "电焊机", "s": "ZX7-400S", "q": "10", "u": "台", "c": "焊接切割"}, {"n": "电焊机", "s": "zx7-400SD", "q": "2", "u": "台", "c": "焊接切割"}, {"n": "国标铜芯电缆（气刨机）", "s": "YH 450/750 70平", "q": "1", "u": "卷", "c": "焊接切割"}, {"n": "国标铝芯焊把线", "s": "70mm² 铝芯  100m", "q": "4", "u": "卷", "c": "焊接切割"}, {"n": "气刨钳", "s": "乌龙JG-3 800A", "q": "3", "u": "把", "c": "焊接切割"}, {"n": "焊把", "s": "尚谢恩600A", "q": "40", "u": "个", "c": "焊接切割"}, {"n": "轴流风机", "s": "SF6G-2 固定式 3kW 380V", "q": "2", "u": "台", "c": "焊接切割"}, {"n": "磨光机", "s": "FF-180SH", "q": "2", "u": "台", "c": "焊接切割"}, {"n": "磨光机", "s": "FF04-150", "q": "10", "u": "台", "c": "焊接切割"}, {"n": "磨光机", "s": "FF09-100s", "q": "1", "u": "台", "c": "焊接切割"}, {"n": "磨片", "s": "180*6*22.23", "q": "4", "u": "箱", "c": "焊接切割"}, {"n": "磨片", "s": "150*6*22.23", "q": "7", "u": "箱", "c": "焊接切割"}, {"n": "磨片", "s": "100*6*16", "q": "100", "u": "片", "c": "焊接切割"}, {"n": "切片", "s": "150*1.5*22.23", "q": "3", "u": "箱", "c": "焊接切割"}, {"n": "切片", "s": "100*1.2*16", "q": "100", "u": "片", "c": "焊接切割"}, {"n": "百叶片", "s": "∅150*22（", "q": "2", "u": "箱", "c": "焊接切割"}, {"n": "钢丝轮", "s": "∅150", "q": "50", "u": "个", "c": "焊接切割"}, {"n": "小蜜蜂钢片", "s": "∅150×22×2.2MM", "q": "30", "u": "片", "c": "焊接切割"}, {"n": "切片", "s": "355×3×25.4mm", "q": "100", "u": "片", "c": "焊接切割"}, {"n": "氧气乙炔带", "s": "内径8mm 耐压3MPa 30m", "q": "4", "u": "捆", "c": "焊接切割"}, {"n": "气刨管", "s": "内径10mm", "q": "2", "u": "卷", "c": "焊接切割"}, {"n": "割枪", "s": "G01-30  型", "q": "4", "u": "个", "c": "焊接切割"}, {"n": "割枪", "s": "G01-100 型", "q": "4", "u": "个", "c": "焊接切割"}, {"n": "氧气瓶推车", "s": "40升省力氧气带盖车大轮14寸实心轮", "q": "1", "u": "辆", "c": "焊接切割"}, {"n": "乙炔瓶推车", "s": "40升省力乙炔带盖车大轮14寸实心轮", "q": "1", "u": "辆", "c": "焊接切割"}, {"n": "碳棒", "s": "∅100", "q": "2000", "u": "支", "c": "焊接切割"}, {"n": "焊条烘干箱", "s": "", "q": "1", "u": "个", "c": "焊接切割"}, {"n": "自锁圆三通", "s": "", "q": "2", "u": "个", "c": "焊接切割"}, {"n": "半自动火焰切割机", "s": "CG1-30", "q": "6", "u": "台", "c": "焊接切割"}, {"n": "洗车泵", "s": "380V 4kW 压力≥3MPa 带管带接头", "q": "1", "u": "台", "c": "水压"}, {"n": "离心泵", "s": "ISW65-200B-5.5KW-21.8吨-38m", "q": "1", "u": "台", "c": "水压"}, {"n": "压力表缓冲管", "s": "90度*2，180*2", "q": "4", "u": "个", "c": "水压"}, {"n": "4分阀门", "s": "", "q": "3", "u": "个", "c": "水压"}, {"n": "连接部位用的内外丝", "s": "", "q": "2", "u": "个", "c": "水压"}, {"n": "洗车泵防爆管配套可焊丝", "s": "", "q": "2", "u": "个", "c": "水压"}, {"n": "压力表", "s": "", "q": "6", "u": "个", "c": "水压"}, {"n": "垫片", "s": "DN50×24,DN80×12,DN100×4,DN150×6,DN200×8,DN600×4", "q": "58", "u": "个", "c": "水压"}, {"n": "盲板人孔配套螺丝", "s": "螺栓含螺母，M16×70mm", "q": "40", "u": "套", "c": "水压"}, {"n": "球罐底部阀门", "s": "", "q": "2", "u": "个", "c": "水压"}, {"n": "配套盲板", "s": "DN50×5,DN80×7,DN100×2,DN150×3,DN200×2，Φ166/210/255/318/381mm，δ\n  =32mm）", "q": "19", "u": "块", "c": "水压"}, {"n": "消防水带", "s": "防爆高压12-65-20水带加接头", "q": "10", "u": "卷", "c": "水压"}, {"n": "梅花板手", "s": "每种规格各一个（16件套）", "q": "1", "u": "套", "c": "水压"}, {"n": "生胶带", "s": "", "q": "20", "u": "卷", "c": "水压"}, {"n": "燃烧器", "s": "1000型", "q": "1", "u": "台", "c": "热处理"}, {"n": "控制柜", "s": "DCS-RY型", "q": "1", "u": "台", "c": "热处理"}, {"n": "控制线", "s": "12芯", "q": "1", "u": "根", "c": "热处理"}, {"n": "电缆线", "s": "3×10mm2", "q": "1", "u": "卷", "c": "热处理"}, {"n": "包布保温棉", "s": "7200×620×30", "q": "350", "u": "条", "c": "热处理"}, {"n": "铁丝", "s": "10#", "q": "3", "u": "卷", "c": "热处理"}, {"n": "铁丝", "s": "14#", "q": "3", "u": "卷", "c": "热处理"}, {"n": "固定柱", "s": "", "q": "100", "u": "套", "c": "热处理"}, {"n": "热电偶", "s": "k型", "q": "50", "u": "支", "c": "热处理"}, {"n": "热电偶辅导线", "s": "2×1", "q": "1200", "u": "米", "c": "热处理"}, {"n": "记录仪（含图谱）", "s": "8024VAC", "q": "2", "u": "台", "c": "热处理"}, {"n": "输油管", "s": "", "q": "100", "u": "米", "c": "热处理"}, {"n": "循环泵", "s": "", "q": "1", "u": "套", "c": "热处理"}, {"n": "倒油泵", "s": "", "q": "1", "u": "台", "c": "热处理"}, {"n": "手拉葫芦", "s": "1T", "q": "4", "u": "台", "c": "热处理"}, {"n": "喷砂空压机", "s": "型号排气量6.6，排气压力0.8MPa,电机功率37KW，主机转速3000r/min", "q": "1", "u": "台", "c": "防腐防火"}, {"n": "储气罐", "s": "1m³ 1.6MPa", "q": "1", "u": "台", "c": "防腐防火"}, {"n": "（喷砂）气管", "s": "内径32mm外径50 20米/根 材质:丁苯橡胶，压力:20公斤", "q": "6", "u": "根", "c": "防腐防火"}, {"n": "喷砂枪抢座", "s": "50mm", "q": "2", "u": "个", "c": "防腐防火"}, {"n": "喷涂机", "s": "700", "q": "1", "u": "个", "c": "防腐防火"}, {"n": "喷枪", "s": "", "q": "3", "u": "个", "c": "防腐防火"}, {"n": "喷漆喷嘴", "s": "", "q": "7", "u": "个", "c": "防腐防火"}, {"n": "（喷漆）高压管", "s": "", "q": "6", "u": "个", "c": "防腐防火"}, {"n": "电钻", "s": "", "q": "2", "u": "个", "c": "防腐防火"}, {"n": "喷嘴座", "s": "", "q": "3", "u": "个", "c": "防腐防火"}, {"n": "泵体", "s": "", "q": "1", "u": "个", "c": "防腐防火"}, {"n": "喷砂枪", "s": "", "q": "2", "u": "个", "c": "防腐防火"}, {"n": "喷砂罐", "s": "", "q": "1", "u": "个", "c": "防腐防火"}, {"n": "防火涂料", "s": "", "q": "3.5", "u": "吨", "c": "防腐防火"}, {"n": "自锁c式快速接头", "s": "", "q": "4", "u": "个", "c": "防腐防火"}, {"n": "胶带", "s": "", "q": "10", "u": "盒", "c": "防腐防火"}, {"n": "加长刀架", "s": "", "q": "5", "u": "个", "c": "防腐防火"}, {"n": "钻头", "s": "", "q": "50", "u": "个", "c": "防腐防火"}, {"n": "铁皮打包机", "s": "", "q": "2", "u": "个", "c": "防腐防火"}, {"n": "螺丝", "s": "", "q": "25", "u": "kg", "c": "防腐防火"}, {"n": "合尺", "s": "", "q": "6", "u": "个", "c": "防腐防火"}, {"n": "刮板", "s": "", "q": "4", "u": "个", "c": "防腐防火"}, {"n": "插电电钻", "s": "", "q": "2", "u": "个", "c": "防腐防火"}, {"n": "气管", "s": "", "q": "100", "u": "米", "c": "防腐防火"}, {"n": "喷壶", "s": "", "q": "6", "u": "个", "c": "防腐防火"}, {"n": "防护面罩", "s": "", "q": "50", "u": "个", "c": "防腐防火"}, {"n": "防护支架", "s": "", "q": "20", "u": "个", "c": "防腐防火"}, {"n": "起线机", "s": "", "q": "1", "u": "台", "c": "防腐防火"}, {"n": "滚圆机", "s": "", "q": "1", "u": "台", "c": "防腐防火"}, {"n": "充电电钻", "s": "", "q": "7", "u": "把", "c": "防腐防火"}, {"n": "电动吹风机", "s": "", "q": "2", "u": "台", "c": "防腐防火"}, {"n": "防护膜", "s": "", "q": "2", "u": "卷", "c": "防腐防火"}, {"n": "聚氨酯喷涂机", "s": "", "q": "1", "u": "台", "c": "防腐防火"}, {"n": "镀锌钢带", "s": "", "q": "16", "u": "卷", "c": "保温保冷"}, {"n": "防锈铝卷", "s": "", "q": "35", "u": "卷", "c": "保温保冷"}, {"n": "组合聚醚", "s": "", "q": "5", "u": "吨", "c": "保温保冷"}, {"n": "异氰酸酯", "s": "", "q": "5", "u": "吨", "c": "保温保冷"}, {"n": "马蹄脂", "s": "", "q": "5", "u": "吨", "c": "保温保冷"}, {"n": "电缆支架", "s": "PVC，56×12.5CM", "q": "100", "u": "个", "c": "安全防护"}, {"n": "防火布", "s": "宽 2 米 * 长 16 米，厚度≥0.4，隔距 50cm 打孔32m²/包，", "q": "32", "u": "包", "c": "安全防护"}, {"n": "警戒带", "s": "", "q": "5", "u": "个", "c": "安全防护"}, {"n": "五点安全带", "s": "", "q": "25", "u": "个", "c": "安全防护"}, {"n": "安全网", "s": "25平方", "q": "5", "u": "张", "c": "安全防护"}, {"n": "灭火器点检卡", "s": "", "q": "1", "u": "包", "c": "安全防护"}, {"n": "防尘口罩（多配棉）", "s": "", "q": "15", "u": "个", "c": "安全防护"}, {"n": "滤尘棉", "s": "", "q": "15", "u": "包", "c": "安全防护"}, {"n": "普通口罩", "s": "1000片", "q": "10", "u": "盒", "c": "安全防护"}, {"n": "各种安全标示牌", "s": "", "q": "2", "u": "套", "c": "安全防护"}, {"n": "用电管理制度牌", "s": "", "q": "1", "u": "个", "c": "安全防护"}, {"n": "受限空间标示牌，危险告知牌", "s": "", "q": "2", "u": "套", "c": "安全防护"}, {"n": "气瓶存放警告牌，危险告知牌", "s": "", "q": "2", "u": "套", "c": "安全防护"}, {"n": "焊工手套", "s": "", "q": "60", "u": "副", "c": "安全防护"}, {"n": "帆布手套", "s": "350双", "q": "1", "u": "箱", "c": "安全防护"}, {"n": "灯", "s": "220V  300W", "q": "8", "u": "个", "c": "安全防护"}, {"n": "锁", "s": "", "q": "15", "u": "把", "c": "安全防护"}, {"n": "头灯", "s": "", "q": "10", "u": "个", "c": "安全防护"}, {"n": "钢丝安全绳", "s": "10mm", "q": "1", "u": "捆", "c": "安全防护"}, {"n": "钢丝安全绳卡扣", "s": "M10", "q": "25", "u": "个", "c": "安全防护"}, {"n": "绝缘橡胶垫", "s": "2㎡", "q": "1", "u": "个", "c": "安全防护"}, {"n": "手拿款（面罩）", "s": "", "q": "20", "u": "个", "c": "安全防护"}, {"n": "戴款（面罩）", "s": "9100V", "q": "11", "u": "个", "c": "安全防护"}, {"n": "口哨", "s": "", "q": "2", "u": "个", "c": "安全防护"}, {"n": "马甲", "s": "", "q": "4", "u": "件", "c": "安全防护"}, {"n": "led投光灯", "s": "", "q": "1", "u": "个", "c": "安全防护"}, {"n": "脚手架验收牌", "s": "", "q": "12", "u": "个", "c": "安全防护"}, {"n": "横幅", "s": "", "q": "3", "u": "个", "c": "安全防护"}, {"n": "二级配电箱安全标语", "s": "", "q": "1", "u": "套", "c": "安全防护"}, {"n": "安全帽", "s": "", "q": "30", "u": "个", "c": "安全防护"}, {"n": "反光背心", "s": "", "q": "", "u": "件", "c": "安全防护"}, {"n": "四合一气体检测仪", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "套头", "s": "m22", "q": "5", "u": "个", "c": "工具配件"}, {"n": "测距仪", "s": "", "q": "1", "u": "个", "c": "工具配件"}, {"n": "指针扳手", "s": "300N·m", "q": "1", "u": "个", "c": "工具配件"}, {"n": "电动板手", "s": "DCPB488(4.0)", "q": "8", "u": "个", "c": "工具配件"}, {"n": "大锤", "s": "14磅", "q": "8", "u": "个", "c": "工具配件"}, {"n": "湿笔", "s": "", "q": "30", "u": "盒", "c": "工具配件"}, {"n": "老虎钳", "s": "", "q": "4", "u": "把", "c": "工具配件"}, {"n": "铁丝", "s": "14#", "q": "10", "u": "捆", "c": "工具配件"}, {"n": "铁丝", "s": "16#", "q": "3", "u": "捆", "c": "工具配件"}, {"n": "十字螺丝刀", "s": "", "q": "10", "u": "个", "c": "工具配件"}, {"n": "一字螺丝刀", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "内六角板手", "s": "", "q": "2", "u": "套", "c": "工具配件"}, {"n": "管钳", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "开口板手", "s": "15寸*2，10寸*2", "q": "4", "u": "个", "c": "工具配件"}, {"n": "工具包", "s": "", "q": "4", "u": "个", "c": "工具配件"}, {"n": "铁丝钳", "s": "8寸", "q": "4", "u": "个", "c": "工具配件"}, {"n": "绳子", "s": "", "q": "2", "u": "捆", "c": "工具配件"}, {"n": "胶布", "s": "黑", "q": "200", "u": "卷", "c": "工具配件"}, {"n": "胶布", "s": "黄绿双色", "q": "40", "u": "卷", "c": "工具配件"}, {"n": "胶布", "s": "红", "q": "20", "u": "卷", "c": "工具配件"}, {"n": "胶布", "s": "黄", "q": "20", "u": "卷", "c": "工具配件"}, {"n": "胶布", "s": "绿", "q": "20", "u": "卷", "c": "工具配件"}, {"n": "胶布", "s": "蓝", "q": "20", "u": "卷", "c": "工具配件"}, {"n": "高压防水胶布", "s": "", "q": "30", "u": "卷", "c": "工具配件"}, {"n": "布料胶带", "s": "", "q": "10", "u": "卷", "c": "工具配件"}, {"n": "尼绒扎带", "s": "4*400", "q": "5", "u": "包", "c": "工具配件"}, {"n": "螺丝", "s": "M12×25", "q": "50", "u": "套", "c": "工具配件"}, {"n": "螺丝", "s": "M10×20", "q": "50", "u": "套", "c": "工具配件"}, {"n": "螺丝", "s": "M8×25", "q": "100", "u": "套", "c": "工具配件"}, {"n": "自攻螺丝", "s": "十字M3×40", "q": "1", "u": "盒", "c": "工具配件"}, {"n": "六角钻尾丝", "s": "M5.5×25mm", "q": "2", "u": "盒", "c": "工具配件"}, {"n": "钉子", "s": "4公分", "q": "1", "u": "盒", "c": "工具配件"}, {"n": "电动扳手伸缩头", "s": "", "q": "10", "u": "个", "c": "工具配件"}, {"n": "套头", "s": "8mm", "q": "10", "u": "个", "c": "工具配件"}, {"n": "十字批头", "s": "", "q": "10", "u": "个", "c": "工具配件"}, {"n": "钢锯", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "钢锯条", "s": "", "q": "20", "u": "根", "c": "工具配件"}, {"n": "漆膜测厚仪", "s": "", "q": "1", "u": "个", "c": "工具配件"}, {"n": "蛇皮袋", "s": "", "q": "200", "u": "个", "c": "工具配件"}, {"n": "测温枪", "s": "", "q": "1", "u": "个", "c": "工具配件"}, {"n": "铁锹", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "洋镐", "s": "", "q": "1", "u": "个", "c": "工具配件"}, {"n": "大小扫把", "s": "大*4，小*2", "q": "5", "u": "把", "c": "工具配件"}, {"n": "三通套筒板手", "s": "14  17  19", "q": "2", "u": "个", "c": "工具配件"}, {"n": "三孔工业插头", "s": "16A 220V 公母各5盒", "q": "10", "u": "盒", "c": "工具配件"}, {"n": "三孔工业插头", "s": "32A220V公5盒", "q": "5", "u": "盒", "c": "工具配件"}, {"n": "四孔工业插头", "s": "32A380V公5盒", "q": "3", "u": "盒", "c": "工具配件"}, {"n": "三孔工业插座", "s": "32A", "q": "1", "u": "盒", "c": "工具配件"}, {"n": "四孔工业插座", "s": "32A", "q": "1", "u": "盒", "c": "工具配件"}, {"n": "液压钳", "s": "YQK-240", "q": "2", "u": "套", "c": "工具配件"}, {"n": "（喷漆）接头", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "风速仪", "s": "", "q": "1", "u": "台", "c": "工具配件"}, {"n": "s型挂钩", "s": "", "q": "150", "u": "个", "c": "工具配件"}, {"n": "双面胶", "s": "", "q": "10", "u": "卷", "c": "工具配件"}, {"n": "标签贴", "s": "", "q": "1", "u": "包", "c": "工具配件"}, {"n": "透明胶带", "s": "", "q": "3", "u": "卷", "c": "工具配件"}, {"n": "电焊锤", "s": "250g", "q": "11", "u": "个", "c": "工具配件"}, {"n": "簸箕", "s": "", "q": "2", "u": "个", "c": "工具配件"}, {"n": "黑色记号笔", "s": "", "q": "5", "u": "盒", "c": "办公生活"}, {"n": "白色记号笔", "s": "", "q": "2", "u": "盒", "c": "办公生活"}, {"n": "木材切割片", "s": "150", "q": "2", "u": "片", "c": "办公生活"}, {"n": "黑色中性笔", "s": "笔芯*100", "q": "5", "u": "盒", "c": "办公生活"}, {"n": "A4纸", "s": "", "q": "5", "u": "箱", "c": "办公生活"}, {"n": "文件夹", "s": "", "q": "12", "u": "个", "c": "办公生活"}, {"n": "文件盒", "s": "", "q": "20", "u": "个", "c": "办公生活"}, {"n": "施工日志本", "s": "", "q": "4", "u": "个", "c": "办公生活"}, {"n": "安全日志本", "s": "", "q": "4", "u": "个", "c": "办公生活"}, {"n": "办公桌", "s": "", "q": "6", "u": "张", "c": "办公生活"}, {"n": "办公椅", "s": "", "q": "4", "u": "把", "c": "办公生活"}, {"n": "被子", "s": "", "q": "20", "u": "套", "c": "办公生活"}, {"n": "麻将", "s": "", "q": "8", "u": "副", "c": "办公生活"}, {"n": "回形针", "s": "", "q": "3", "u": "盒", "c": "办公生活"}, {"n": "燕尾夹", "s": "32*2，25*2，50*2", "q": "6", "u": "盒", "c": "办公生活"}, {"n": "订书机", "s": "", "q": "2", "u": "个", "c": "办公生活"}, {"n": "硒鼓", "s": "墨粉*3", "q": "6", "u": "个", "c": "办公生活"}, {"n": "打印机", "s": "", "q": "1", "u": "台", "c": "办公生活"}, {"n": "焊条", "s": "J557，Φ4.0*400mm", "q": "500", "u": "箱", "c": "施工材料"}, {"n": "焊条", "s": "J427,Φ3.2mm", "q": "3", "u": "箱", "c": "施工材料"}, {"n": "焊条", "s": "J427,Φ4.0mm", "q": "7", "u": "箱", "c": "施工材料"}, {"n": "槽钢（跳板托架*5材料）", "s": "Q235B,140*58*6.0", "q": "25", "u": "根", "c": "托架材料"}, {"n": "槽钢（卡具方圆销托架*2材料）", "s": "Q235B,120*53*5.5", "q": "8", "u": "根", "c": "托架材料"}, {"n": "槽钢（脚钢管托架*1材料）", "s": "", "q": "13", "u": "根", "c": "托架材料"}, {"n": "无缝钢管（钢管托架材料）", "s": "", "q": "3", "u": "根", "c": "托架材料"}, {"n": "钢管托架挡板", "s": "", "q": "1", "u": "套", "c": "托架材料"}, {"n": "吊耳（托架材料）", "s": "长16.8", "q": "8", "u": "套", "c": "托架材料"}, {"n": "销轴托架挡板（销轴托架材料）", "s": "4mm*4，6mm*1", "q": "1", "u": "套", "c": "托架材料"}];
+
+var catColors = {
+  '运输工装':'#95A5A6','配电设备':'#F39C12','脚手架':'#D35400','罐体组装':'#E67E22',
+  '焊接切割':'#E74C3C','水压':'#3498DB','热处理':'#C0392B','防腐防火':'#9B59B6',
+  '保温保冷':'#1ABC9C','安全防护':'#27AE60','工具配件':'#F1C40F','办公生活':'#7F8C8D',
+  '施工材料':'#8E44AD','托架材料':'#BDC3C7'
+};
+function ch(c){return catColors[c]||'#888'}
+
+// Table
+var tb=document.getElementById('tb'), rows=[];
+DATA.forEach(function(item,i){
+  var tr=document.createElement('tr');
+  tr.innerHTML='<td><span class="dot" style="background:'+ch(item.c)+'"></span>'+(item.c||'')+'</td><td>'+item.n+'</td><td>'+(item.s||'')+'</td><td>'+(item.q||'')+(item.u||'')+'</td>';
+  tr.dataset.i=i; tr.onclick=function(){flyTo(i)};
+  tb.appendChild(tr); rows.push(tr);
+});
+document.getElementById('cnt').textContent=DATA.length+'项';
+
+function filterTable(q){
+  q=q.toLowerCase();
+  rows.forEach(function(r,i){
+    var d=DATA[i]; r.style.display=(!q||d.n.toLowerCase().indexOf(q)>=0||(d.s||'').toLowerCase().indexOf(q)>=0||(d.c||'').toLowerCase().indexOf(q)>=0)?'':'none';
+  });
+}
+function hl(idx){
+  rows.forEach(function(r){r.classList.remove('hl')});
+  if(idx>=0&&rows[idx]){rows[idx].classList.add('hl');rows[idx].scrollIntoView({block:'center',behavior:'smooth'});}
+}
+
+// 3D
+var v3d=document.getElementById('v3d');
+var scene=new THREE.Scene(); scene.background=new THREE.Color(0x1a1a2e);
+var camera=new THREE.PerspectiveCamera(55,v3d.clientWidth/v3d.clientHeight,0.5,100);
+camera.position.set(14,9,16); camera.lookAt(0,0,1);
+var renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(v3d.clientWidth,v3d.clientHeight);
+renderer.shadowMap.enabled=true;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+v3d.appendChild(renderer.domElement);
+
+var labelRenderer=new THREE.CSS2DRenderer();
+labelRenderer.setSize(v3d.clientWidth,v3d.clientHeight);
+labelRenderer.domElement.style.position='absolute'; labelRenderer.domElement.style.top='0';
+labelRenderer.domElement.style.pointerEvents='none';
+v3d.appendChild(labelRenderer.domElement);
+
+var controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.target.set(0,0.5,1); controls.update();
+
+scene.add(new THREE.AmbientLight(0x404060,2.5));
+var sun=new THREE.DirectionalLight(0xffffff,5); sun.position.set(15,20,10);
+sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=0.5; sun.shadow.camera.far=80;
+sun.shadow.camera.left=-20; sun.shadow.camera.right=20;
+sun.shadow.camera.top=20; sun.shadow.camera.bottom=-20; scene.add(sun);
+
+var ground=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.MeshStandardMaterial({color:0x2c2c3e,roughness:0.8}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-3; ground.receiveShadow=true; scene.add(ground);
+var grid=new THREE.GridHelper(30,30,0x333355,0x222244); grid.position.y=-2.99; scene.add(grid);
+
+var clickables=[], itemMeshes={};
+
+function makeBox(cfg){
+  var g=new THREE.Group(); g.position.set(cfg.pos[0],cfg.pos[1],cfg.pos[2]);
+  var w=cfg.size[0],h=cfg.size[1],d=cfg.size[2];
+  var bg=new THREE.BoxGeometry(w,h,d);
+  var bm=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:cfg.color,roughness:0.4,metalness:0.3,transparent:true,opacity:0.2}));
+  bm.castShadow=true; bm.receiveShadow=true; g.add(bm);
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(bg),new THREE.LineBasicMaterial({color:cfg.color})));
+  var pg=new THREE.CylinderGeometry(0.05,0.05,h,6), pm=new THREE.MeshStandardMaterial({color:0x667,roughness:0.3,metalness:0.8});
+  for(var x=-1;x<=1;x+=2)for(var z=-1;z<=1;z+=2){var p=new THREE.Mesh(pg,pm);p.position.set(x*w/2,0,z*d/2);p.castShadow=true;g.add(p);}
+  var items=cfg.items,n=items.length;
+  var cols=Math.ceil(Math.sqrt(n*(d/w))),rows=Math.ceil(n/cols);
+  var cW=(w-0.4)/cols,cH=(h-0.4)/Math.min(rows,6),cD=(d-0.4)/Math.ceil(rows/6);
+  items.forEach(function(item,i){
+    var layer=Math.floor(i/(cols*6)),inL=i%(cols*6),col=inL%cols,row=inL%cols;
+    var geo=Math.random()<0.5?new THREE.BoxGeometry(cW*0.7,cH*0.5,cD*0.7):new THREE.CylinderGeometry(cW*0.28,cW*0.28,cH*0.5,8);
+    var m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:new THREE.Color(ch(item.c)),roughness:0.4}));
+    m.position.set((col-cols/2+0.5)*cW,-h/2+0.3+(row+0.5)*cH,(layer-1+0.5)*cD);
+    m.castShadow=true; m.userData={item:item,idx:DATA.indexOf(item)}; clickables.push(m); g.add(m);
+    if(DATA.indexOf(item)>=0)itemMeshes[DATA.indexOf(item)]=m;
+  });
+  var ld=document.createElement('div');ld.textContent=cfg.name;ld.style.cssText='color:#fff;font-size:12px;font-weight:bold;background:rgba(0,0,0,0.7);padding:3px 8px;border-radius:4px;';
+  var lbl=new THREE.CSS2DObject(ld);lbl.position.set(0,h/2+0.3,0);g.add(lbl);
+  scene.add(g);
+}
+
+makeBox({name:'箱一：热处理设备',color:0xE74C3C,items:DATA.slice(43,58),pos:[-5,0,0],size:[3.5,2.5,2.5]});
+makeBox({name:'箱二：保温保冷材料',color:0x3498DB,items:DATA.slice(58,70),pos:[0,0,0],size:[3.5,2.5,2.5]});
+makeBox({name:'箱三：焊接机具',color:0x2ECC71,items:DATA.slice(70,329),pos:[5.5,0,0.5],size:[3.5,2.5,8]});
+
+for(var i=0;i<8;i++){
+  var bg=new THREE.Group();bg.position.set(-8+i*2.2,-1.5,4.5);
+  var base=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.12,1.2),new THREE.MeshStandardMaterial({color:0x7B8D8E,roughness:0.3,metalness:0.8}));
+  base.castShadow=true;base.receiveShadow=true;bg.add(base);
+  for(var x=-1;x<=1;x+=2)for(var z=-1;z<=1;z+=2){
+    var post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.8,6),new THREE.MeshStandardMaterial({color:0x667,roughness:0.3,metalness:0.8}));
+    post.position.set(x*0.8,0.4,z*0.5);post.castShadow=true;bg.add(post);
+  }
+  if(i<5&&DATA[33+i]){
+    var bm=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.3,0.8),new THREE.MeshStandardMaterial({color:new THREE.Color(ch(DATA[33+i].c)),roughness:0.4}));
+    bm.position.y=0.3;bm.castShadow=true;bm.userData={item:DATA[33+i],idx:33+i};clickables.push(bm);itemMeshes[33+i]=bm;bg.add(bm);
+  }
+  scene.add(bg);
+}
+
+var raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
+renderer.domElement.addEventListener('click',function(e){
+  var rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  var hits=raycaster.intersectObjects(clickables);
+  if(hits.length>0){var idx=hits[0].object.userData.idx;if(idx>=0){hl(idx);document.getElementById('sel').textContent=DATA[idx].n;}}
+});
+
+function flyTo(idx){
+  var mesh=itemMeshes[idx]; if(!mesh)return;
+  hl(idx); document.getElementById('sel').textContent=DATA[idx].n;
+  var wp=new THREE.Vector3(); mesh.getWorldPosition(wp);
+  controls.target.lerp(wp,1);
+  camera.position.lerp(wp.clone().add(new THREE.Vector3(3,2,3)),1);
+}
+window.flyTo=flyTo;window.filterTable=filterTable;
+
+window.addEventListener('resize',function(){
+  camera.aspect=v3d.clientWidth/v3d.clientHeight;camera.updateProjectionMatrix();
+  renderer.setSize(v3d.clientWidth,v3d.clientHeight);
+  labelRenderer.setSize(v3d.clientWidth,v3d.clientHeight);
+});
+
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);labelRenderer.render(scene,camera);}
+animate();
+</script>
+</body>
+</html>
