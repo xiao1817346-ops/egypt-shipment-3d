@@ -3,7 +3,7 @@
 <body><div id="v3d"><div id="legend"></div></div><div id="panel"><div id="search"><input type="text" placeholder="搜索..." oninput="filt(this.value)"></div><div id="twrap"></div></div>
 <div id="overlay" onclick="closeDetail()"></div>
 <div id="detail-popup"><span class="close" onclick="closeDetail()">✕</span><h4 id="dp-name"></h4><div id="dp-content"></div></div>
-<script src="https://raw.githubusercontent.com/xiao1817346-ops/egypt-shipment-3d/main/three.r128.min.js"></script><script>
+<script src="three.r128.min.js"></script><script>window.onerror=function(m){document.body.innerHTML="<pre style=color:red;padding:20px>"+m+"</pre>";return false};
 var CC={"运输工装":"#95A5A6","配电设备":"#E74C3C","脚手架":"#E67E22","罐体组装":"#8E44AD","焊接切割":"#3498DB","水压":"#1ABC9C","热处理":"#F39C12","防腐防火":"#9B59B6","保温保冷":"#2ECC71","安全防护":"#27AE60","工具配件":"#F1C40F","办公生活":"#34495E","施工材料":"#D35400"};var CH=function(c){return CC[c]||'#888'};
 var catTexCache={};
 function getCatTex(cat){if(catTexCache[cat])return catTexCache[cat];var cv=document.createElement('canvas');cv.width=64;cv.height=64;var ctx=cv.getContext('2d');var base=CH(cat);ctx.fillStyle=base;ctx.fillRect(0,0,64,64);for(var i=0;i<200;i++){ctx.fillStyle='rgba('+(Math.random()>.5?'255':'0')+','+(Math.random()>.5?'255':'0')+','+(Math.random()>.5?'255':'0')+','+(Math.random()*.08)+')';ctx.fillRect(Math.random()*64,Math.random()*64,Math.random()*6+1,Math.random()*6+1)}var g=ctx.createRadialGradient(32,32,10,32,32,45);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.15)');ctx.fillStyle=g;ctx.fillRect(0,0,64,64);var tex=new THREE.CanvasTexture(cv);tex.wrapS=THREE.RepeatWrapping;tex.wrapT=THREE.RepeatWrapping;catTexCache[cat]=tex;return tex}
@@ -63,6 +63,7 @@ var steelTube=new THREE.MeshStandardMaterial({color:0x5A4A3E,roughness:0.25,meta
 var steelPlate=new THREE.MeshStandardMaterial({color:0x9B8B7E,roughness:0.3,metalness:0.85});
 var woodPlank=new THREE.MeshStandardMaterial({color:0xF5F5F0,roughness:0.2,metalness:0.8});
 var pinMetal=new THREE.MeshStandardMaterial({color:0xAABBCC,roughness:0.2,metalness:0.95});
+function mkContTex(c0){var cv=document.createElement("canvas");cv.width=256;cv.height=256;var ctx=cv.getContext("2d");ctx.fillStyle=c0;ctx.fillRect(0,0,256,256);for(var i=0;i<24;i++){var x=i*10.7;var g=ctx.createLinearGradient(x,0,x+10.7,0);g.addColorStop(0,"rgba(0,0,0,.25)");g.addColorStop(.3,"rgba(255,255,255,.08)");g.addColorStop(.5,"rgba(0,0,0,0)");g.addColorStop(.7,"rgba(0,0,0,.2)");g.addColorStop(1,"rgba(0,0,0,.3)");ctx.fillStyle=g;ctx.fillRect(x,0,10.7,256)}for(var j=0;j<30;j++){ctx.fillStyle="rgba(80,40,20,"+(Math.random()*.15)+")";ctx.beginPath();ctx.arc(Math.random()*256,Math.random()*256,Math.random()*8+2,0,Math.PI*2);ctx.fill()}return new THREE.CanvasTexture(cv)}
 var contTex1=mkContTex('#8B1A1A'),contTex2=mkContTex('#1A3A6B'),contTex3=mkContTex('#7A1A1A');
 function B(w,h,d,m){var o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.castShadow=true;o.receiveShadow=true;return o}
 function C(r2,h,m){var o=new THREE.Mesh(new THREE.CylinderGeometry(r2,r2,h,8),m);o.castShadow=true;return o}
@@ -76,10 +77,10 @@ function mkBracket(x,z,w,h,d,col,type,gid,idx){
   [[-w/2,0,-d/2],[w/2,0,-d/2],[-w/2,0,d/2],[w/2,0,d/2]].forEach(function(p){var post=mkPost(0.08,h);post.position.set(p[0],0,p[2]);gr.add(post)});
   for(var sz=-1;sz<=1;sz+=2){var bt=B(w,0.06,0.06,steelTube);bt.position.set(0,-h/2+0.03,sz*d/2);gr.add(bt);var tp=B(w,0.06,0.06,steelTube);tp.position.set(0,h/2-0.03,sz*d/2);gr.add(tp)}
   for(var sx=-1;sx<=1;sx+=2){var be=B(0.06,0.06,d,steelTube);be.position.set(sx*w/2,-h/2+0.03,0);gr.add(be);var te=B(0.06,0.06,d,steelTube);te.position.set(sx*w/2,h/2-0.03,0);gr.add(te)}
-  for(var j=0;j<Math.ceil(w/0.3);j++){var cb=B(0.04,0.05,d-0.1,steelTube);cb.position.set(-w/2+0.1+j*0.32,-h/2+0.07,0);gr.add(cb)}
-  for(var j=0;j<Math.ceil(w/0.12);j++){var fl=B(0.1,0.015,d-0.08,woodPlank);fl.position.set(-w/2+0.06+j*0.13,-h/2+0.1,0);gr.add(fl)}
+  for(var j=0;j<Math.ceil(w/0.3);j++){var cb=B(0.04,0.05,d-0.16,steelTube);cb.position.set(-w/2+0.1+j*0.32,-h/2+0.07,0);gr.add(cb)}
+  for(var j=0;j<Math.ceil(w/0.12);j++){var fl=B(0.1,0.015,d-0.16,woodPlank);fl.position.set(-w/2+0.06+j*0.13,-h/2+0.1,0);gr.add(fl)}
   if(type==='b'){for(var row=1;row<=2;row++){for(var sz2=-1;sz2<=1;sz2+=2){var cb3=B(w-0.04,0.05,0.05,steelTube);cb3.position.set(0,-h/2+row*h/3,sz2*(d/2-0.03));gr.add(cb3)}for(var sx2=-1;sx2<=1;sx2+=2){var cb4=B(0.05,0.05,d-0.04,steelTube);cb4.position.set(sx2*(w/2-0.03),-h/2+row*h/3,0);gr.add(cb4)}}}
-  if(type==='c'){for(var row=1;row<=2;row++){for(var sz2=-1;sz2<=1;sz2+=2){var cb3=B(w-0.04,0.05,0.05,steelTube);cb3.position.set(0,-h/2+row*h/3,sz2*(d/2-0.03));gr.add(cb3)}for(var sx2=-1;sx2<=1;sx2+=2){var cb4=B(0.05,0.05,d-0.04,steelTube);cb4.position.set(sx2*(w/2-0.03),-h/2+row*h/3,0);gr.add(cb4)}}}
+  if(type==='c'){for(var row=1;row<=2;row++){for(var sz2=-1;sz2<=1;sz2+=2){var cb3=B(w-0.04,0.05,0.05,steelTube);cb3.position.set(0,-h/2+row*h/3,sz2*(d/2-0.03));gr.add(cb3)}for(var sx2=-1;sx2<=1;sx2+=2){var cb4=B(0.05,0.05,d-0.04,steelTube);cb4.position.set(sx2*(w/2-0.03),-h/2+row*h/3,0);gr.add(cb4)}}}if(type==='x'){var panMat=new THREE.MeshStandardMaterial({color:0x7B6B5E,roughness:0.35,metalness:0.9});for(var sz3=-1;sz3<=1;sz3+=2){var pn=B(w-0.08,h-0.12,0.01,panMat);pn.position.set(0,0,sz3*(d/2-0.06));gr.add(pn)}for(var sx3=-1;sx3<=1;sx3+=2){var pn2=B(0.01,h-0.12,d-0.08,panMat);pn2.position.set(sx3*(w/2-0.06),0,0);gr.add(pn2)}}
   var lugMat=new THREE.MeshStandardMaterial({color:0x6B5B4E,roughness:0.3,metalness:0.9});
   [[-w/2,h/2,-d/2],[w/2,h/2,-d/2],[-w/2,h/2,d/2],[w/2,h/2,d/2]].forEach(function(p){var lug=B(0.06,0.17,0.04,lugMat);lug.position.set(p[0],p[1]+0.085,p[2]);gr.add(lug);var hole=C(0.015,0.05,new THREE.MeshBasicMaterial({color:0x111111}));hole.position.set(p[0],p[1]+0.12,p[2]);hole.rotation.x=Math.PI/2;gr.add(hole)});
   for(var row=0;row<2;row++){var rh=-h/2+0.25+row*(h-0.5);for(var sz2=-1;sz2<=1;sz2+=2){var hp=B(w,0.03,0.03,steelTube);hp.position.set(0,rh,sz2*d/2);gr.add(hp)}for(var sx2=-1;sx2<=1;sx2+=2){var hp2=B(0.03,0.03,d,steelTube);hp2.position.set(sx2*w/2,rh,0);gr.add(hp2)}}
