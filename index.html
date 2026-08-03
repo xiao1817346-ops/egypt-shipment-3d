@@ -174,7 +174,7 @@ s.add(mkLabel('罐体安装销轴',-4,-1.5+2.75+0.8,0,0xC0C0C0));
 r.domElement.addEventListener('click',function(e){mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;raycaster.setFromCamera(mouse,c);var hits=raycaster.intersectObjects(clicks,false);if(hits.length>0){var d=hits[0].object.userData;if(!d)return;if(d.frame){scrollToSection(d.g);var key=d.g+'_'+(d.i>=0?d.i:'__frame');if(!mm[key])key=d.g+'_'+0;glow3D(mm[key])}}});
 function flyTo(gid,i){
   var key;
-  if(gid==='t'){if(i<3){var m2=['b1','b2','b3'];gid=m2[i];key=gid+'__frame'}else{key='t_'+(i-3)}}
+  if(gid==='t'){if(i<8){key='t_'+i}else{var m2=['b1','b2','b3'];gid=m2[i-8];key=gid+'__frame'}}
   else if(gid==='b'){key='t_'+(i<=4?i:i===5||i===6?5:i===7?6:7)}
   else{key=gid+'__frame'}
   var m=mm[key];if(!m)return;
