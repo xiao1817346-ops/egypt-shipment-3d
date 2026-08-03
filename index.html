@@ -68,8 +68,8 @@ var contTex1=mkContTex('#8B1A1A'),contTex2=mkContTex('#1A3A6B'),contTex3=mkContT
 function B(w,h,d,m){var o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.castShadow=true;o.receiveShadow=true;return o}
 function C(r2,h,m){var o=new THREE.Mesh(new THREE.CylinderGeometry(r2,r2,h,8),m);o.castShadow=true;return o}
 function mkPost(sz,h){return B(sz,h,sz,steelIBeam)}
-var clicks=[],mm={},raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2(),hlBox=null;
-function glow3D(gr){if(hlBox&&hlBox.parent)hlBox.parent.remove(hlBox);hlBox=null;if(!gr)return;var ud=gr.userData||{},w=ud.w||4,h=ud.h||3,d=ud.d||3;var geo=new THREE.BoxGeometry(w+0.25,h+0.25,d+0.25);hlBox=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0xffdd00,depthTest:false}));gr.add(hlBox)}
+var clicks=[],mm={},itemLookup={},cellLookup={},cellHL=null,_hlGeo=null,_hlEdge=null,hlBox=null,raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
+function glow3D(gr){if(hlBox&&hlBox.parent)hlBox.parent.remove(hlBox);hlBox=null;if(!gr)return;var ud=gr.userData||{},w=ud.w||4,h=ud.h||3,d=ud.d||3;hlBox=new THREE.Mesh(new THREE.BoxGeometry(w+0.3,h+0.3,d+0.3),new THREE.MeshBasicMaterial({color:0xffdd00,transparent:true,opacity:0.35,depthTest:false}));gr.add(hlBox)}
 // mkBracket
 function mkBracket(x,z,w,h,d,col,type,gid,idx){
   var gr=new THREE.Group();gr.position.set(x,-1.5+h/2,z);gr.userData={w:w,h:h,d:d};
@@ -100,7 +100,52 @@ function mkCont(x,z,w,h,d,col,gid,items){
   var body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshPhysicalMaterial({color:col,roughness:0.4,metalness:0.3,clearcoat:0.3,transparent:true,opacity:0.3,map:ctex}));body.castShadow=true;body.receiveShadow=true;gr.add(body);
   [[-w/2,0,-d/2],[w/2,0,-d/2],[-w/2,0,d/2],[w/2,0,d/2]].forEach(function(p){var cp=B(0.06,h,0.06,steelIBeam);cp.position.set(p[0],0,p[2]);gr.add(cp)});
   for(var sx=-1;sx<=1;sx+=2){var rod=C(0.02,h*0.85,steelTube);rod.position.set(sx*(w/2-0.15),0,-d/2+0.02);gr.add(rod);var lock=B(0.04,0.3,0.02,steelPlate);lock.position.set(sx*(w/2-0.15),h/2-0.5,-d/2+0.03);gr.add(lock)}
-  if(items&&items.length>0){var n=items.length,cols=Math.min(6,Math.max(2,Math.floor(w/0.5))),rows=Math.min(5,Math.max(1,Math.floor(h/0.4))),perLayer=cols*rows,layers=Math.ceil(n/perLayer);var cW=(w-0.3)/cols,cH=(h-0.35)/rows,cD=(d-0.4)/layers;var bch={};items.forEach(function(item,j){var k=(item.n.toLowerCase().indexOf('电缆')>=0||item.n.indexOf('线')>=0||item.n.indexOf('绳')>=0?'a':item.n.indexOf('管')>=0?'b':item.n.indexOf('带')>=0?'c':item.n.indexOf('桶')>=0||item.n.indexOf('罐')>=0?'d':item.n.indexOf('卷')>=0||item.n.indexOf('盘')>=0?'e':item.n.indexOf('机')>=0||item.n.indexOf('泵')>=0||item.n.indexOf('箱')>=0?'f':item.n.indexOf('板')>=0||item.n.indexOf('片')>=0||item.n.indexOf('牌')>=0?'g':'h')+'_'+item.c;if(!bch[k])bch[k]=[];bch[k].push(j)});var dm=new THREE.Object3D();Object.keys(bch).forEach(function(k){var idxs=bch[k],n2=idxs.length,j0=idxs[0],nm=items[j0].n.toLowerCase();var geo=nm.indexOf('电缆')>=0||nm.indexOf('线')>=0||nm.indexOf('绳')>=0?new THREE.CylinderGeometry(cW*0.08,cW*0.08,cH*0.5,6):nm.indexOf('管')>=0?new THREE.CylinderGeometry(cW*0.06,cW*0.06,cH*0.7,6):nm.indexOf('带')>=0?new THREE.TorusGeometry(cW*0.2,cW*0.03,8,12):nm.indexOf('桶')>=0||nm.indexOf('罐')>=0?new THREE.CylinderGeometry(cW*0.25,cW*0.25,cH*0.5,12):nm.indexOf('卷')>=0||nm.indexOf('盘')>=0?new THREE.CylinderGeometry(cW*0.28,cW*0.28,cH*0.15,16):nm.indexOf('机')>=0||nm.indexOf('泵')>=0||nm.indexOf('箱')>=0?new THREE.BoxGeometry(cW*0.7,cH*0.5,cD*0.7):nm.indexOf('板')>=0||nm.indexOf('片')>=0||nm.indexOf('牌')>=0?new THREE.BoxGeometry(cW*0.55,cH*0.08,cD*0.55):new THREE.BoxGeometry(cW*0.45,cH*0.35,cD*0.45);var im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color:new THREE.Color(CH(items[j0].c)),roughness:0.4,map:getCatTex(items[j0].c)}),n2);im.castShadow=true;idxs.forEach(function(j,i){var col=j%perLayer%cols,row=Math.floor(j%perLayer/cols),layer=Math.floor(j/perLayer);dm.position.set((col-cols/2+0.5)*cW,-h/2+0.2+(row+0.5)*cH,(layer-(layers-1)/2)*cD);dm.rotation.set(0,((j*137.5)%360)*(Math.PI/180),0);dm.updateMatrix();im.setMatrixAt(i,dm.matrix)});im.instanceMatrix.needsUpdate=true;gr.add(im)})}
+  if(items&&items.length>0){
+  var ny=4,nx=Math.max(8,Math.round(w/(h/ny))),nz=Math.max(6,Math.round(d/(h/ny)));
+  var cellW=w/nx,cellH=h/ny,cellD=d/nz,totalCells=nx*nz*ny;
+  var gridGeo=new THREE.BoxGeometry(cellW*0.96,cellH*0.96,cellD*0.96);
+  var gridMat=new THREE.MeshBasicMaterial({color:0x555555,transparent:true,opacity:0.12,depthWrite:false});
+  var gim=new THREE.InstancedMesh(gridGeo,gridMat,totalCells);gim.renderOrder=0;
+  var dm2=new THREE.Object3D(),ci2=0;
+  for(var ly=0;ly<ny;ly++)for(var iz=0;iz<nz;iz++)for(var ix=0;ix<nx;ix++){
+    dm2.position.set((ix+0.5-nx/2)*cellW,-h/2+(ly+0.5)*cellH,(iz+0.5-nz/2)*cellD);
+    dm2.scale.set(1,1,1);dm2.updateMatrix();gim.setMatrixAt(ci2++,dm2.matrix)
+  }
+  gim.instanceMatrix.needsUpdate=true;gr.add(gim);
+  var totV=0;items.forEach(function(it){totV+=Math.max(0.001,parseFloat(it.v||0.01))});
+  var catItems={};items.forEach(function(it,i){var cat=it.c;if(!catItems[cat])catItems[cat]=[];catItems[cat].push({v:Math.max(0.001,parseFloat(it.v||0.01)),idx:i})});
+  var blocks=[];
+  Object.keys(catItems).forEach(function(cat){
+    var vols=catItems[cat],pool=0,poolIdx=[];
+    vols.forEach(function(vi){var cells=vi.v/totV*totalCells,side;
+      if(cells>=2){side=Math.max(1,Math.round(Math.sqrt(Math.round(cells))));blocks.push({cat:cat,cells:Math.round(cells),side:side,idxs:[vi.idx]})}
+      else if(cells>=1){blocks.push({cat:cat,cells:Math.round(cells),side:Math.round(cells),idxs:[vi.idx]})}
+      else{pool+=cells;poolIdx.push(vi.idx);if(pool>=1){blocks.push({cat:cat,cells:Math.round(pool),side:Math.round(Math.sqrt(Math.round(pool))),idxs:poolIdx.slice()});pool=0;poolIdx=[]}}
+    });
+    if(pool>=0.5){blocks.push({cat:cat,cells:Math.round(pool),side:Math.max(1,Math.round(Math.sqrt(Math.round(pool)))),idxs:poolIdx.slice()})}
+  });
+  blocks.sort(function(a,b){return gid==='b2'?b.cells-a.cells:a.cells-b.cells});
+  var curX=0,curZ=0,layer=0,rowMax=0,occ={},bid=0;
+  blocks.forEach(function(blk){var s=blk.side;if(curX+s>nx){curX=0;curZ=rowMax}if(curZ+s>nz){layer++;curX=0;curZ=0;rowMax=0}
+    blk._x=curX;blk._z=curZ;blk._ly=layer;
+    for(var dx=0;dx<s;dx++)for(var dz=0;dz<s;dz++)occ[layer+'_'+(blk._z+dz)+'_'+(blk._x+dx)]=blk.cat;var bK=gid+'_'+bid;(blk.idxs||[]).forEach(function(ii){itemLookup[gid+'_'+ii]={gid:gid,bid:bid}});cellLookup[bK]={x:blk._x,z:blk._z,ly:blk._ly,cw:cellW,ch:cellH,cd:cellD,nx:nx,nz:nz,hh:h,cx:x,cy:-1.5+h/2,cz:z};bid++;
+    curX+=s;rowMax=Math.max(rowMax,curZ+s)
+  });
+  var catCells={};
+  for(var ly2=0;ly2<ny;ly2++)for(var iz2=0;iz2<nz;iz2++)for(var ix2=0;ix2<nx;ix2++){
+    var ct=occ[ly2+'_'+iz2+'_'+ix2];if(ct){if(!catCells[ct])catCells[ct]=[];catCells[ct].push({x:ix2,z:iz2,ly:ly2})}
+  }
+  Object.keys(catCells).forEach(function(cat){
+    var cells=catCells[cat],n2=cells.length,geo2=new THREE.BoxGeometry(cellW*0.96,cellH*0.96,cellD*0.96);
+    var im=new THREE.InstancedMesh(geo2,new THREE.MeshStandardMaterial({color:new THREE.Color(CH(cat)),roughness:0.4,map:getCatTex(cat)}),n2);
+    im.castShadow=true;im.renderOrder=1;
+    cells.forEach(function(cl,i){
+      dm2.position.set((cl.x+0.5-nx/2)*cellW,-h/2+(cl.ly+0.5)*cellH,(cl.z+0.5-nz/2)*cellD);
+      dm2.scale.set(1,1,1);dm2.updateMatrix();im.setMatrixAt(i,dm2.matrix)
+    });
+    im.instanceMatrix.needsUpdate=true;gr.add(im)
+  })
+}
   gr.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,d)),new THREE.LineBasicMaterial({color:col})));
   var hb2=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({visible:false}));hb2.userData={g:gid,i:-1,frame:true};clicks.push(hb2);gr.add(hb2);mm[gid+'__frame']=gr;
   return gr;
@@ -129,13 +174,24 @@ s.add(mkLabel('罐体安装销轴',-4,-1.5+2.75+0.8,0,0xC0C0C0));
 r.domElement.addEventListener('click',function(e){mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;raycaster.setFromCamera(mouse,c);var hits=raycaster.intersectObjects(clicks,false);if(hits.length>0){var d=hits[0].object.userData;if(!d)return;if(d.frame){scrollToSection(d.g);var key=d.g+'_'+(d.i>=0?d.i:'__frame');if(!mm[key])key=d.g+'_'+0;glow3D(mm[key])}}});
 function flyTo(gid,i){
   var key;
-  if(gid==='t'){if(i<8){key='t_'+i}else{var m2=['b1','b2','b3'];gid=m2[i-8];key=gid+'__frame'}}
-  else if(gid==='b'){key='t_'+i}
+  if(gid==='t'){if(i<3){var m2=['b1','b2','b3'];gid=m2[i];key=gid+'__frame'}else{key='t_'+(i-3)}}
+  else if(gid==='b'){key='t_'+(i<=4?i:i===5||i===6?5:i===7?6:7)}
   else{key=gid+'__frame'}
   var m=mm[key];if(!m)return;
-  if(gid==='t'||gid.indexOf('b')===0){scrollToSection(gid);glow3D(m)}
-  else{hlRow(gid,i);var gr=m;while(gr&&!(gr instanceof THREE.Group))gr=gr.parent;glow3D(gr||m)}
-  var wp=new THREE.Vector3();var g2=m;while(g2&&!(g2 instanceof THREE.Group))g2=g2.parent;(g2||m).getWorldPosition(wp);tgt.copy(wp);markD()}
+  if(cellHL){s.remove(cellHL);cellHL=null}
+  var il=itemLookup[gid+'_'+i],cl=il?cellLookup[gid+'_'+il.bid]:null;
+  if(cl){
+    if(!_hlGeo){_hlGeo=new THREE.BoxGeometry(1,1,1);_hlEdge=new THREE.EdgesGeometry(_hlGeo)}
+    cellHL=new THREE.LineSegments(_hlEdge,new THREE.LineBasicMaterial({color:0xffdd00}));
+    cellHL.position.set(cl.cx+(cl.x+0.5-cl.nx/2)*cl.cw,cl.cy-cl.hh/2+(cl.ly+0.5)*cl.ch,cl.cz+(cl.z+0.5-cl.nz/2)*cl.cd);
+    cellHL.scale.set(cl.cw*0.97,cl.ch*0.97,cl.cd*0.97);
+    s.add(cellHL);cellHL.getWorldPosition(tgt);scrollToSection(gid);markD()
+  }else{
+    if(gid==='t'||gid.indexOf('b')===0){scrollToSection(gid);glow3D(m)}
+    else{var gr=m;while(gr&&!(gr instanceof THREE.Group))gr=gr.parent;glow3D(gr||m)}
+    var g2=m;while(g2&&!(g2 instanceof THREE.Group))g2=g2.parent;(g2||m).getWorldPosition(tgt);markD()
+  }
+}
 window.flyTo=flyTo;window.filt=filt;window.showDetail=showDetail;window.closeDetail=closeDetail;window.showSecDetail=showSecDetail;
 window.addEventListener('resize',function(){W=v3d.clientWidth;H=v3d.clientHeight;c.aspect=W/H;c.updateProjectionMatrix();r.setSize(W,H);markD()});
 var dirty=true;function markD(){dirty=true}function animate(){requestAnimationFrame(animate);c.position.setFromSpherical(sph);c.position.add(tgt);c.lookAt(tgt);if(dirty){r.render(s,c);dirty=false}}animate();
